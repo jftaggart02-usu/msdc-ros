@@ -130,6 +130,31 @@ ros2 launch msdc_ros teleop.launch.py
 
 The robot should follow your commands!
 
+### Teleop Sensitivity Parameters
+
+The teleop node supports two joystick sensitivity modes:
+
+- `joystick_sensitivity_curve: linear`
+	- Current behavior. Joystick axis values are mapped directly to output commands.
+- `joystick_sensitivity_curve: nonlinear`
+	- Uses an exponential blend: `(1 - alpha) * input + alpha * input^3`.
+	- Less sensitive near joystick center and still reaches full output at the extremes.
+
+Tune with:
+
+- `joystick_sensitivity_alpha` in `[0.0, 1.0]`
+	- `0.0` behaves like fully linear.
+	- `1.0` behaves like pure cubic.
+	- Default is `0.6`.
+
+Example override at launch:
+
+```
+ros2 launch msdc_ros teleop.launch.py \
+	joystick_sensitivity_curve:=nonlinear \
+	joystick_sensitivity_alpha:=0.7
+```
+
 ## Using Rosbag to Record Camera Feed and Steering Angle
 
 First, run `ros2 launch msdc_ros realsense_teleop.launch.py` and ensure the teleop is working properly. 

@@ -35,6 +35,8 @@ def generate_launch_description():
             {"steering_axis": 2},
             {"max_velocity": 0.7},
             {"max_steering_angle": 45},
+            {"joystick_sensitivity_curve": "nonlinear"},
+            {"joystick_sensitivity_alpha": 0.6},
         ],
     )
 
