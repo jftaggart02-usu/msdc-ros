@@ -26,10 +26,10 @@ def generate_launch_description():
             {"control_topic": "/movement_control"},
             {"velocity_axis": 1},
             {"steering_axis": 2},
-            {"max_velocity": 0.7},
-            {"max_steering_angle": 45},
+            {"max_velocity": 0.3},
+            {"max_steering_angle": 40},
             {"joystick_sensitivity_curve": "nonlinear"},
-            {"joystick_sensitivity_alpha": 0.6},
+            {"joystick_sensitivity_alpha": 0.8},
         ],
     )
 
