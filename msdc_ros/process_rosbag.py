@@ -96,11 +96,51 @@ def synchronize_messages(
     return synchronized
 
 
+def pair_depth_messages(
+    synchronized_msgs: List[Tuple[float, any, any]], depth_msgs: List[Tuple[float, any]], max_time_diff: float = 0.1
+) -> List[Tuple[float, any, any, any]]:
+    """
+    Pair synchronized image/control samples with the closest depth message by timestamp.
+
+    Returns:
+        List of (timestamp, image_msg, control_msg, depth_msg) tuples
+    """
+    paired = []
+    depth_idx = 0
+
+    for sample_time, img_msg, ctrl_msg in synchronized_msgs:
+        best_depth = None
+        best_diff = float("inf")
+
+        search_idx = depth_idx
+        while search_idx < len(depth_msgs):
+            depth_time, depth_msg = depth_msgs[search_idx]
+            time_diff = abs(depth_time - sample_time)
+
+            if time_diff < best_diff:
+                best_diff = time_diff
+                best_depth = depth_msg
+                depth_idx = search_idx
+
+            if depth_time > sample_time + max_time_diff:
+                break
+
+            search_idx += 1
+
+        if best_depth is not None and best_diff <= max_time_diff:
+            paired.append((sample_time, img_msg, ctrl_msg, best_depth))
+        else:
+            print(f"Warning: No depth message found within {max_time_diff}s for sample at {sample_time:.3f}")
+
+    return paired
+
+
 def process_rosbag(
     bag_path: str,
     output_dir: str,
     image_topic: str = "/image_raw",
     control_topic: str = "/movement_control",
+    depth_topic: str = "/camera/realsense2_camera/depth/image_rect_raw",
     max_sync_diff: float = 0.1,
 ) -> None:
     """
@@ -111,6 +151,7 @@ def process_rosbag(
         output_dir: Output dataset directory
         image_topic: Topic name for images
         control_topic: Topic name for control commands
+        depth_topic: Topic name for depth images
         max_sync_diff: Max time difference for synchronizing messages (seconds)
     """
     print(f"Processing rosbag: {bag_path}")
@@ -119,7 +160,9 @@ def process_rosbag(
     # Create output directories
     output_path = Path(output_dir)
     images_dir = output_path / "images"
+    depth_dir = output_path / "depth"
     images_dir.mkdir(parents=True, exist_ok=True)
+    depth_dir.mkdir(parents=True, exist_ok=True)
 
     # Extract messages
     print(f"\nExtracting messages from {image_topic}...")
@@ -130,12 +173,20 @@ def process_rosbag(
     control_messages = get_rosbag_messages(bag_path, control_topic)
     print(f"Found {len(control_messages)} control messages")
 
+    print(f"\nExtracting messages from {depth_topic}...")
+    depth_messages = get_rosbag_messages(bag_path, depth_topic)
+    print(f"Found {len(depth_messages)} depth messages")
+
     if not image_messages:
         print(f"Error: No messages found on {image_topic}")
         return
 
     if not control_messages:
         print(f"Error: No messages found on {control_topic}")
+        return
+
+    if not depth_messages:
+        print(f"Error: No messages found on {depth_topic}")
         return
 
     # Synchronize messages
@@ -147,6 +198,17 @@ def process_rosbag(
         print("Error: No synchronized messages found")
         return
 
+    print(f"\nPairing synchronized samples with depth messages (max time diff: {max_sync_diff}s)...")
+    synchronized_with_depth = pair_depth_messages(synchronized, depth_messages, max_sync_diff)
+    print(f"Successfully paired {len(synchronized_with_depth)} image-control-depth triplets")
+
+    if not synchronized_with_depth:
+        print("Error: No synchronized image-control-depth triplets found")
+        return
+
+    # Normalize timestamps for CSV readability only, after synchronization is finalized.
+    min_sync_timestamp = min(timestamp for timestamp, _, _, _ in synchronized_with_depth)
+
     # Process and save data
     bridge = CvBridge()
     labels_path = output_path / "labels.csv"
@@ -156,38 +218,54 @@ def process_rosbag(
         writer = csv.writer(csvfile)
         writer.writerow(["index", "timestamp", "steering"])
 
-        for idx, (timestamp, img_msg, ctrl_msg) in enumerate(synchronized, start=1):
-            # Save image
-            image_filename = f"{idx:06d}.png"
+        saved_count = 0
+        for timestamp, img_msg, ctrl_msg, depth_msg in synchronized_with_depth:
+            next_idx = saved_count + 1
+
+            # Save RGB and depth images with a shared index.
+            image_filename = f"{next_idx:06d}.png"
+            depth_filename = f"{next_idx:06d}.png"
             image_path = images_dir / image_filename
+            depth_path = depth_dir / depth_filename
 
             try:
                 cv_image = bridge.imgmsg_to_cv2(img_msg, desired_encoding="bgr8")
+                depth_image = bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
                 cv2.imwrite(str(image_path), cv_image)
+                cv2.imwrite(str(depth_path), depth_image)
             except Exception as e:
-                print(f"Error processing image {idx}: {e}")
+                print(f"Error processing sample {next_idx}: {e}")
                 continue
 
             # Write label
+            normalized_timestamp = timestamp - min_sync_timestamp
             steering_rad = math.radians(float(ctrl_msg.steering_angle))
-            writer.writerow([idx, f"{timestamp:.6f}", f"{steering_rad:.6f}"])
+            writer.writerow([next_idx, f"{normalized_timestamp:.6f}", f"{steering_rad:.6f}"])
+            saved_count += 1
 
-            if idx % 100 == 0:
-                print(f"Processed {idx}/{len(synchronized)} samples...")
+            if saved_count % 100 == 0:
+                print(f"Processed {saved_count}/{len(synchronized_with_depth)} samples...")
 
     print(f"\n✓ Dataset created successfully!")
     print(f"  Images: {images_dir}")
+    print(f"  Depth: {depth_dir}")
     print(f"  Labels: {labels_path}")
-    print(f"  Total samples: {len(synchronized)}")
+    print(f"  Total samples: {saved_count}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Process rosbag into structured dataset for steering model training")
     parser.add_argument("bag_path", type=str, help="Path to the rosbag directory")
     parser.add_argument("output_dir", type=str, help="Output dataset directory")
-    parser.add_argument("--image-topic", type=str, default="/image_raw", help="Image topic name (default: /image_raw)")
+    parser.add_argument("--image-topic", type=str, default="/camera/realsense2_camera/color/image_raw", help="Image topic name (default: /image_raw)")
     parser.add_argument(
         "--control-topic", type=str, default="/movement_control", help="Control topic name (default: /movement_control)"
+    )
+    parser.add_argument(
+        "--depth-topic",
+        type=str,
+        default="/camera/realsense2_camera/depth/image_rect_raw",
+        help="Depth image topic name (default: /camera/realsense2_camera/depth/image_rect_raw)",
     )
     parser.add_argument(
         "--max-sync-diff",
@@ -203,7 +281,14 @@ def main():
         return 1
 
     try:
-        process_rosbag(args.bag_path, args.output_dir, args.image_topic, args.control_topic, args.max_sync_diff)
+        process_rosbag(
+            args.bag_path,
+            args.output_dir,
+            args.image_topic,
+            args.control_topic,
+            args.depth_topic,
+            args.max_sync_diff,
+        )
         return 0
     except Exception as e:
         print(f"Error processing rosbag: {e}")
