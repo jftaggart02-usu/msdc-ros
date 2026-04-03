@@ -28,6 +28,7 @@ setup(
         "console_scripts": [
             "process_rosbag = msdc_ros.process_rosbag:main",
             "teleop_node = msdc_ros.teleop_node:main",
+            "record_data = msdc_ros.record_data:main",
         ],
     },
 )
