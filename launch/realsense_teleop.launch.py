@@ -2,16 +2,32 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 
 
 def generate_launch_description():
     """Launch joy_node and teleop_node for teleoperation."""
+
+    launch_args = [
+        DeclareLaunchArgument("launch_realsense", default_value="true", description="Whether to launch the RealSense camera node"),
+        DeclareLaunchArgument("joy_topic", default_value="/joy", description="Topic for joystick input"),
+        DeclareLaunchArgument("control_topic", default_value="/movement_control", description="Topic for movement control commands"),
+        DeclareLaunchArgument("velocity_axis", default_value="1", description="Joystick axis index for velocity control"),
+        DeclareLaunchArgument("steering_axis", default_value="2", description="Joystick axis index for steering control"),
+        DeclareLaunchArgument("max_velocity", default_value="0.3", description="Maximum velocity for teleoperation"),
+        DeclareLaunchArgument("max_steering_angle", default_value="40", description="Maximum steering angle for teleoperation"),
+        DeclareLaunchArgument("joystick_sensitivity_curve", default_value="nonlinear", description="Joystick sensitivity curve (linear or nonlinear)"),
+        DeclareLaunchArgument("joystick_sensitivity_alpha", default_value="0.8", description="Alpha value for joystick sensitivity curve (0.0 to 1.0)")
+    ]
 
     realsense_node = Node(
         package="realsense2_camera",
         executable="realsense2_camera_node",
         name="realsense2_camera",
         output="screen",
+        condition=IfCondition(LaunchConfiguration("launch_realsense")),
     )
 
     # Joy node for joystick input
@@ -29,14 +45,14 @@ def generate_launch_description():
         name="teleop_node",
         output="screen",
         parameters=[
-            {"joy_topic": "/joy"},
-            {"control_topic": "/movement_control"},
-            {"velocity_axis": 1},
-            {"steering_axis": 2},
-            {"max_velocity": 0.3},
-            {"max_steering_angle": 40},
-            {"joystick_sensitivity_curve": "nonlinear"},
-            {"joystick_sensitivity_alpha": 0.8},
+            {"joy_topic": LaunchConfiguration("joy_topic")},
+            {"control_topic": LaunchConfiguration("control_topic")},
+            {"velocity_axis": LaunchConfiguration("velocity_axis")},
+            {"steering_axis": LaunchConfiguration("steering_axis")},
+            {"max_velocity": LaunchConfiguration("max_velocity")},
+            {"max_steering_angle": LaunchConfiguration("max_steering_angle")},
+            {"joystick_sensitivity_curve": LaunchConfiguration("joystick_sensitivity_curve")},
+            {"joystick_sensitivity_alpha": LaunchConfiguration("joystick_sensitivity_alpha")},
         ],
     )
 
@@ -52,6 +68,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            *launch_args,
             realsense_node,
             joy_node,
             teleop_node,
