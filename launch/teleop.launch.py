@@ -11,15 +11,15 @@ def generate_launch_description():
     """Launch joy_node and teleop_node for teleoperation."""
 
     launch_args = [
-        DeclareLaunchArgument("launch_realsense", default_value="false", description="Whether to launch the RealSense camera node"),
+        DeclareLaunchArgument("launch_realsense", default_value="true", description="Whether to launch the RealSense camera node"),
         DeclareLaunchArgument("joy_topic", default_value="/joy", description="Topic for joystick input"),
         DeclareLaunchArgument("control_topic", default_value="/movement_control", description="Topic for movement control commands"),
         DeclareLaunchArgument("velocity_axis", default_value="1", description="Joystick axis index for velocity control"),
         DeclareLaunchArgument("steering_axis", default_value="2", description="Joystick axis index for steering control"),
         DeclareLaunchArgument("max_velocity", default_value="0.3", description="Maximum velocity for teleoperation"),
-        DeclareLaunchArgument("max_steering_angle", default_value="40", description="Maximum steering angle for teleoperation"),
+        DeclareLaunchArgument("max_steering_angle", default_value="45", description="Maximum steering angle for teleoperation"),
         DeclareLaunchArgument("joystick_sensitivity_curve", default_value="nonlinear", description="Joystick sensitivity curve (linear or nonlinear)"),
-        DeclareLaunchArgument("joystick_sensitivity_alpha", default_value="0.8", description="Alpha value for joystick sensitivity curve (0.0 to 1.0)")
+        DeclareLaunchArgument("joystick_sensitivity_alpha", default_value="0.5", description="Alpha value for joystick sensitivity curve (0.0 to 1.0)")
     ]
 
     realsense_node = Node(
@@ -28,6 +28,13 @@ def generate_launch_description():
         name="realsense2_camera",
         output="screen",
         condition=IfCondition(LaunchConfiguration("launch_realsense")),
+        parameters=[
+            {"align_depth.enable": True},
+            {"enable_sync": True},
+            {"rgb_camera.color_profile": "640x480x10"},
+            {"depth_camera.depth_profile": "640x480x10"},
+            {"depth_camera.infra_profile": "640x480x10"},
+        ],
     )
 
     # Joy node for joystick input
