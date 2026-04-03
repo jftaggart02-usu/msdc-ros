@@ -11,7 +11,7 @@ def generate_launch_description():
     """Launch joy_node and teleop_node for teleoperation."""
 
     launch_args = [
-        DeclareLaunchArgument("launch_realsense", default_value="true", description="Whether to launch the RealSense camera node"),
+        DeclareLaunchArgument("launch_realsense", default_value="false", description="Whether to launch the RealSense camera node"),
         DeclareLaunchArgument("joy_topic", default_value="/joy", description="Topic for joystick input"),
         DeclareLaunchArgument("control_topic", default_value="/movement_control", description="Topic for movement control commands"),
         DeclareLaunchArgument("velocity_axis", default_value="1", description="Joystick axis index for velocity control"),
