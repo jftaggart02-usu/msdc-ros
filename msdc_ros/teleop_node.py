@@ -82,11 +82,10 @@ class TeleopNode(Node):
         steering_input = msg.axes[self.steering_axis]
 
         shaped_velocity_input = self._apply_sensitivity_curve(velocity_input)
-        shaped_steering_input = self._apply_sensitivity_curve(steering_input)
 
         # Map axis values to command ranges
         # velocity: -1.0 to 1.0 -> -max_velocity to max_velocity
-        velocity = shaped_velocity_input * self.max_velocity
+        velocity = velocity_input * self.max_velocity
         # steering_angle: -1.0 to 1.0 -> -max_steering_angle to max_steering_angle
         steering_angle = -1 * int(shaped_steering_input * self.max_steering_angle)
 
