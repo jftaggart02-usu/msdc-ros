@@ -25,15 +25,14 @@ def generate_launch_description():
     realsense_node = Node(
         package="realsense2_camera",
         executable="realsense2_camera_node",
-        name="realsense2_camera",
         output="screen",
         condition=IfCondition(LaunchConfiguration("launch_realsense")),
         parameters=[
             {"align_depth.enable": True},
             {"enable_sync": True},
-            {"rgb_camera.color_profile": "640x480x10"},
-            {"depth_camera.depth_profile": "640x480x10"},
-            {"depth_camera.infra_profile": "640x480x10"},
+            {"rgb_camera.color_profile": "640x480x30"},
+            {"depth_camera.depth_profile": "640x480x30"},
+            {"depth_camera.infra_profile": "640x480x30"},
         ],
     )
 
