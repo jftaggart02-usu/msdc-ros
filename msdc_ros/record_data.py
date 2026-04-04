@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Optional
 
 import cv2
+import numpy as np
 import rclpy
-from cv_bridge import CvBridge
 from rclpy.node import Node
 from rosmaster_r2_msgs.msg import AkmControl
 from sensor_msgs.msg import CameraInfo, Image
@@ -55,8 +55,6 @@ class RecordDataNode(Node):
 		self.labels_file = open(self.labels_path, "w", newline="")
 		self.labels_writer = csv.writer(self.labels_file)
 		self.labels_writer.writerow(["timestamp", "index", "steering_angle_rad"])
-
-		self.bridge = CvBridge()
 
 		self.latest_rgb: Optional[Image] = None
 		self.latest_depth: Optional[Image] = None
@@ -151,8 +149,64 @@ class RecordDataNode(Node):
 	def _stamp_to_ns(image_msg: Image) -> int:
 		return image_msg.header.stamp.sec * 1_000_000_000 + image_msg.header.stamp.nanosec
 
+	@staticmethod
+	def _row_aligned_uint8(msg: Image) -> np.ndarray:
+		if msg.step <= 0:
+			raise ValueError("Image step must be > 0")
+		expected_bytes = msg.height * msg.step
+		buffer = np.frombuffer(msg.data, dtype=np.uint8)
+		if buffer.size < expected_bytes:
+			raise ValueError(
+				f"Image data buffer too small (got {buffer.size} bytes, expected {expected_bytes})"
+			)
+		return buffer[:expected_bytes].reshape((msg.height, msg.step))
+
+	def _decode_color_to_bgr(self, msg: Image) -> np.ndarray:
+		encoding = msg.encoding.lower()
+		rows = self._row_aligned_uint8(msg)
+
+		if encoding in {"bgr8", "rgb8"}:
+			if msg.step < msg.width * 3:
+				raise ValueError(f"Invalid step {msg.step} for {encoding} with width {msg.width}")
+			image = rows[:, : msg.width * 3].reshape((msg.height, msg.width, 3))
+			if encoding == "rgb8":
+				image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+			return image
+
+		if encoding in {"bgra8", "rgba8"}:
+			if msg.step < msg.width * 4:
+				raise ValueError(f"Invalid step {msg.step} for {encoding} with width {msg.width}")
+			image = rows[:, : msg.width * 4].reshape((msg.height, msg.width, 4))
+			if encoding == "bgra8":
+				return cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+			return cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
+
+		if encoding == "mono8":
+			if msg.step < msg.width:
+				raise ValueError(f"Invalid step {msg.step} for mono8 with width {msg.width}")
+			gray = rows[:, : msg.width].reshape((msg.height, msg.width))
+			return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+		raise ValueError(f"Unsupported RGB image encoding: {msg.encoding}")
+
+	def _decode_depth_uint16(self, msg: Image) -> np.ndarray:
+		encoding = msg.encoding.lower()
+		if encoding not in {"16uc1", "mono16"}:
+			raise ValueError(f"Unsupported depth encoding: {msg.encoding}")
+
+		if msg.step < msg.width * 2:
+			raise ValueError(f"Invalid step {msg.step} for {encoding} with width {msg.width}")
+
+		rows = self._row_aligned_uint8(msg)
+		depth_bytes = rows[:, : msg.width * 2]
+		depth_dtype = np.dtype(">u2") if bool(msg.is_bigendian) else np.dtype("<u2")
+		depth = depth_bytes.reshape((msg.height, msg.width, 2)).view(depth_dtype).reshape((msg.height, msg.width))
+		if depth.dtype.byteorder == ">":
+			depth = depth.byteswap().newbyteorder()
+		return depth.astype(np.uint16, copy=False)
+
 	def _sampling_callback(self) -> None:
-		if self.latest_rgb is None or self.latest_depth is None or self.latest_control is None::
+		if self.latest_rgb is None or self.latest_depth is None or self.latest_control is None:
 			return
 
 		if (
@@ -172,8 +226,8 @@ class RecordDataNode(Node):
 			return
 
 		try:
-			rgb_bgr = self.bridge.imgmsg_to_cv2(self.latest_rgb, desired_encoding="bgr8")
-			depth_image = self.bridge.imgmsg_to_cv2(self.latest_depth, desired_encoding="passthrough")
+			rgb_bgr = self._decode_color_to_bgr(self.latest_rgb)
+			depth_image = self._decode_depth_uint16(self.latest_depth)
 		except Exception as exc:
 			self.get_logger().warn(f"Skipping sample due to image conversion error: {exc}")
 			return
