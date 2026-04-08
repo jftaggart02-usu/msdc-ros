@@ -44,6 +44,7 @@ class DataCollector(Node):
         self.declare_parameter(name="data_collect_rate", value=10.0, descriptor=ParameterDescriptor(description="Rate at which to collect data in Hz"))
         self.declare_parameter(name="dataset_dir", value="/tmp/dataset", descriptor=ParameterDescriptor(description="Directory to save collected dataset. Directory must not already exist."))
         self.declare_parameter(name="max_sync_err_ms", value=50.0, descriptor=ParameterDescriptor(description="The node will output a warning if the timestamps of the latest samples collected differ by more than this value."))
+        self.declare_parameter(name="reject_bad_samples", value=True, descriptor=ParameterDescriptor(description="Whether to reject samples where the timestamps of the latest samples collected differ by more than max_sync_err_ms. If False, the node will still collect and save these samples but will output a warning."))
 
         # Set parameters
         self.rgb_topic = self.get_parameter("rgb_topic").get_parameter_value().string_value
@@ -54,6 +55,7 @@ class DataCollector(Node):
         self.data_collect_period = 1.0 / self.get_parameter("data_collect_rate").get_parameter_value().double_value
         self.dataset_dir = Path(self.get_parameter("dataset_dir").get_parameter_value().string_value)
         self.max_sync_err_ms = self.get_parameter("max_sync_err_ms").get_parameter_value().double_value
+        self.reject_bad_samples = self.get_parameter("reject_bad_samples").get_parameter_value().bool_value
 
         # Create dataset directory structure
         self.get_logger().info(f"Creating dataset directory at: {self.dataset_dir}")
@@ -138,6 +140,9 @@ class DataCollector(Node):
             # Warn if timestamps of latest samples differ by more than max_sync_err_ms
             sync_err_ms = max([abs(t1 - t2) for t1, t2 in combinations([self.latest_control_timestamp, self.latest_depth_timestamp, self.latest_rgb_timestamp], 2)]) * 1000.0
             if sync_err_ms > self.max_sync_err_ms:
+                if self.reject_bad_samples:
+                    self.get_logger().warning(f"Rejecting sample due to sync error of {sync_err_ms} ms exceeding maximum sync error of {self.max_sync_err_ms} ms.")
+                    return
                 self.get_logger().warning(f"Sync error of {sync_err_ms} ms exceeds maximum sync error of {self.max_sync_err_ms} ms.")
 
             # Write depth and RGB images to files
