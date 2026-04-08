@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node, ParameterDescriptor
 from sensor_msgs.msg import Joy
-from rosmaster_r2_akm_driver.msg import AkmControl
+from rosmaster_r2_msgs.msg import AkmControl
 
 
 class TeleopNode(Node):
@@ -18,7 +18,7 @@ class TeleopNode(Node):
         self.declare_parameter("velocity_axis", value=1, descriptor=ParameterDescriptor(description="The index of the joystick axis to use for velocity control. Should be an integer corresponding to the desired axis in the Joy message."))
         self.declare_parameter("steering_axis", value=2, descriptor=ParameterDescriptor(description="The index of the joystick axis to use for steering control. Should be an integer corresponding to the desired axis in the Joy message."))
         self.declare_parameter("max_velocity", value=0.3, descriptor=ParameterDescriptor(description="The magnitude of the maximum velocity (m/s) that can be commanded. Should be a float in the range [0, 1.8]."))
-        self.declare_parameter("max_steering_angle", value=45, descriptor=ParameterDescriptor(description="The magnitude of the maximum steering angle (degrees) that can be commanded. Should be a float in the range [0, 45] degrees."))
+        self.declare_parameter("max_steering_angle", value=45.0, descriptor=ParameterDescriptor(description="The magnitude of the maximum steering angle (degrees) that can be commanded. Should be a float in the range [0, 45] degrees."))
         self.declare_parameter("steering_sensitivity", value=0.5, descriptor=ParameterDescriptor(description="The sensitivity of the steering control. Should be a float between 0 and 1."))
 
         # Set parameters
@@ -31,19 +31,19 @@ class TeleopNode(Node):
         self.steering_sensitivity = self.get_parameter("steering_sensitivity").get_parameter_value().double_value
         
         # Validate parameters and log warnings if they are outside expected ranges
-        if self.velocity_axis < 0:
+        if self.velocity_axis < 0.0:
             self.get_logger().warning(f"Velocity axis index of {self.velocity_axis} is negative! This may cause an IndexError when processing joystick messages.")
-        if self.steering_axis < 0:
+        if self.steering_axis < 0.0:
             self.get_logger().warning(f"Steering axis index of {self.steering_axis} is negative! This may cause an IndexError when processing joystick messages.")
-        if not 0 <= self.max_velocity <= 1.8:
+        if not 0.0 <= self.max_velocity <= 1.8:
             self.get_logger().warning(f"Max velocity of {self.max_velocity} is outside the acceptable range! Clamping to [0, 1.8] m/s.")
-            self.max_velocity = self.clamp(self.max_velocity, 0, 1.8)
-        if not 0 <= self.max_steering_angle <= 45:
+            self.max_velocity = self.clamp(self.max_velocity, 0.0, 1.8)
+        if not 0.0 <= self.max_steering_angle <= 45.0:
             self.get_logger().warning(f"Max steering angle of {self.max_steering_angle} is outside the acceptable range! Clamping to [0, 45] degrees.")
-            self.max_steering_angle = self.clamp(self.max_steering_angle, 0, 45)
-        if not 0 <= self.steering_sensitivity <= 1:
+            self.max_steering_angle = self.clamp(self.max_steering_angle, 0.0, 45.0)
+        if not 0.0 <= self.steering_sensitivity <= 1.0:
             self.get_logger().warning(f"Steering sensitivity of {self.steering_sensitivity} is outside the acceptable range! Clamping to [0, 1].")
-            self.steering_sensitivity = self.clamp(self.steering_sensitivity, 0, 1)
+            self.steering_sensitivity = self.clamp(self.steering_sensitivity, 0.0, 1.0)
 
         # Create publishers and subscribers
         self.sub_joy = self.create_subscription(msg_type=Joy, topic=self.joy_topic, callback=self.joy_callback, qos_profile=10)
@@ -72,7 +72,7 @@ class TeleopNode(Node):
         velocity_cmd = self.map_value(velocity_cmd, -1.0, 1.0, -self.max_velocity, self.max_velocity)
 
         # Publish to control topic.
-        control_msg = AkmControl(steering_angle=int(round(steering_cmd)), velocity=velocity_cmd)
+        control_msg = AkmControl(steering_angle=-int(round(steering_cmd)), velocity=velocity_cmd)
         self.pub_control.publish(control_msg)
 
     def map_value(self, value: float, in_min: float, in_max: float, out_min: float, out_max: float) -> float:
@@ -122,7 +122,7 @@ class TeleopNode(Node):
         return max(min(value, max_value), min_value)
     
     
-if __name__ == "__main__":
+def main():
     rclpy.init()
     node = TeleopNode()
     try:
@@ -132,3 +132,6 @@ if __name__ == "__main__":
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
+if __name__ == "__main__":
+    main()

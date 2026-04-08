@@ -17,7 +17,7 @@ def generate_launch_description():
         DeclareLaunchArgument("velocity_axis", default_value="1", description="Joystick axis index for velocity control"),
         DeclareLaunchArgument("steering_axis", default_value="2", description="Joystick axis index for steering control"),
         DeclareLaunchArgument("max_velocity", default_value="0.3", description="Maximum velocity for teleoperation"),
-        DeclareLaunchArgument("max_steering_angle", default_value="45", description="Maximum steering angle for teleoperation"),
+        DeclareLaunchArgument("max_steering_angle", default_value="45.0", description="Maximum steering angle for teleoperation"),
         DeclareLaunchArgument("steering_sensitivity_param", default_value="0.5", description="Parameter for steering sensitivity curve. Values range from 1.0 (pure cubic) to 0.0 (pure linear).")
     ]
 
@@ -53,6 +53,7 @@ def generate_launch_description():
             {"max_steering_angle": LaunchConfiguration("max_steering_angle")},
             {"steering_sensitivity_param": LaunchConfiguration("steering_sensitivity_param")},
         ],
+        # arguments=['--ros-args', '--log-level', 'debug']
     )
 
     # Driver node for the rosmaster

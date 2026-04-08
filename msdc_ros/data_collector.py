@@ -9,7 +9,7 @@ import math
 import numpy as np
 import rclpy
 from rclpy.node import Node, ParameterDescriptor
-from rosmaster_r2_akm_driver.msg import AkmControl
+from rosmaster_r2_msgs.msg import AkmControl
 from sensor_msgs.msg import Image, CameraInfo
 import cv2
 
@@ -56,11 +56,13 @@ class DataCollector(Node):
         self.max_sync_err_ms = self.get_parameter("max_sync_err_ms").get_parameter_value().double_value
 
         # Create dataset directory structure
+        self.get_logger().info(f"Creating dataset directory at: {self.dataset_dir}")
         self.dataset_dir.mkdir(parents=True, exist_ok=False)
         self.dataset_dir.joinpath("rgb").mkdir()
         self.dataset_dir.joinpath("depth").mkdir()
 
         # Initialize CSV writer
+        self.get_logger().info(f"Creating labels.csv file at: {self.dataset_dir / 'labels.csv'}")
         self.labels_file = open(self.dataset_dir / "labels.csv", "w", newline="")
         self.writer = csv.writer(self.labels_file)
         self.writer.writerow(["timestamp", "index", "steering_angle_rad"])
@@ -128,6 +130,7 @@ class DataCollector(Node):
         if not self.intrinsics_stored and self.rgb_info and self.depth_info:
             self.write_intrinsics()
             self.intrinsics_stored = True
+            self.get_logger().info("Camera intrinsics have been written to intrinsics.json. Beginning data collection...")
 
         # Once intrinsics.json has been written, begin sample collection
         if self.intrinsics_stored and self.latest_rgb and self.latest_depth and self.latest_control:
@@ -144,7 +147,7 @@ class DataCollector(Node):
             cv2.imwrite(str(self.dataset_dir / "depth" / filename), self.convert_depth_msg_to_numpy(self.latest_depth))
 
             # Write steering angle (radians) to CSV
-            self.writer.writerow([self.latest_rgb_timestamp, index_str, math.radians(self.latest_control.steering_angle)])
+            self.writer.writerow([f"{self.latest_rgb_timestamp:0.9f}", index_str, f"{math.radians(self.latest_control.steering_angle):0.9f}"])
 
             self.sample_index += 1
             
@@ -160,7 +163,7 @@ class DataCollector(Node):
         data = np.frombuffer(msg.data, dtype=np.uint8)
         
         # 2. Reshape to (height, step)
-        data = data.reshape(shape=(msg.height, msg.step))
+        data = data.reshape(msg.height, msg.step)
         
         # 3. Remove padding on the right (if any)
         # 4. Reshape to height x width x channels
@@ -183,7 +186,7 @@ class DataCollector(Node):
         data = np.frombuffer(msg.data, dtype=np.uint16)
         
         # 2. Reshape to (height, step)
-        data = data.reshape(shape=(msg.height, msg.step//2))
+        data = data.reshape(msg.height, msg.step//2)
         
         # 3. Remove padding on the right (if any)
         data = data[:, :msg.width]  # 2 bytes per pixel for uint16
@@ -230,7 +233,7 @@ class DataCollector(Node):
             "depth": self.serializeCameraInfo(self.depth_info)
         }
         with open(json_path, "w") as f:
-            json.dump(intrinsics_data, f)
+            json.dump(intrinsics_data, f, indent=4)
 
     def get_current_time_sec(self) -> float:
         """Get the current ROS time in seconds."""
@@ -250,7 +253,7 @@ class DataCollector(Node):
         super().destroy_node()
 
 
-if __name__ == "__main__":
+def main():
     rclpy.init()
     node = DataCollector()
     try:
@@ -260,3 +263,6 @@ if __name__ == "__main__":
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
+if __name__ == "__main__":
+    main()
