@@ -8,7 +8,7 @@ def generate_launch_description():
     """Launch steering_control for autonomous steering control."""
 
     launch_args = [
-        DeclareLaunchArgument("model_path", default_value="path/to/your/model.pt", description="Path to the steering net model file")
+        DeclareLaunchArgument("model_path", default_value="path/to/your/model.pt", description="Path to the steering net model file"),
         DeclareLaunchArgument("publish_rate", default_value="10.0", description="Rate (in Hz) to publish control commands when enabled"),
         DeclareLaunchArgument("joy_enable_button", default_value="0", description="Button index to enable/disable the controller"),
         DeclareLaunchArgument("enable_refresh_rate", default_value="5.0", description="Rate (in Hz) to check the enable state based on the latest Joy message"),
@@ -51,12 +51,17 @@ def generate_launch_description():
         package="realsense2_camera",
         executable="realsense2_camera_node",
         parameters=[
-            {"align_depth.enable": True},
-            {"enable_sync": True},
             {"rgb_camera.color_profile": "640x480x30"},
-            {"depth_camera.depth_profile": "640x480x30"},
-            {"depth_camera.infra_profile": "640x480x30"},
+            {"enable_depth": False},
+            {"enable_infra1": False},
+            {"enable_infra2": False},
         ],
     )
 
-    return LaunchDescription([lane_follow_node])
+    return LaunchDescription([
+        *launch_args,
+        lane_follow_node,
+        joy_node,
+        driver_node,
+        realsense_node,
+    ])
