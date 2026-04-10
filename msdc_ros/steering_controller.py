@@ -140,3 +140,20 @@ class SteeringController(Node):
             control_msg.steering_angle = 0
             control_msg.velocity = 0.0
             self.control_pub.publish(control_msg)
+
+
+def main():
+    rclpy.init()
+    node = SteeringController()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

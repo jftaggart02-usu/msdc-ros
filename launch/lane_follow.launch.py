@@ -20,7 +20,7 @@ def generate_launch_description():
 
     steering_control = Node(
         package="msdc_ros",
-        executable="lane_follow_node",
+        executable="steering_controller",
         parameters=[
             {"model_path": LaunchConfiguration("model_path")},
             {"publish_rate": LaunchConfiguration("publish_rate")},

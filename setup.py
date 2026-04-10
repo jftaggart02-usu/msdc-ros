@@ -28,6 +28,7 @@ setup(
         "console_scripts": [
             "data_collector = msdc_ros.data_collector:main",
             "teleop_node = msdc_ros.teleop_node:main",
+            "steering_controller = msdc_ros.steering_controller:main",
         ],
     },
 )
