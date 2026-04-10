@@ -132,5 +132,11 @@ class SteeringController(Node):
 
             # Publish the control command
             self.control_pub.publish(control_msg)
-        
-        
+
+        else:
+
+            # If not enabled or no image received, publish a control command with zero velocity and zero steering angle
+            control_msg = AkmControl()
+            control_msg.steering_angle = 0
+            control_msg.velocity = 0.0
+            self.control_pub.publish(control_msg)
