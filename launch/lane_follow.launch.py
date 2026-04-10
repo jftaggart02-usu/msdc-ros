@@ -18,7 +18,7 @@ def generate_launch_description():
         DeclareLaunchArgument("velocity", default_value="0.3", description="Constant velocity to use when publishing control commands"),
     ]
 
-    steering_control = Node(
+    steering_control_node = Node(
         package="msdc_ros",
         executable="steering_controller",
         parameters=[
@@ -60,7 +60,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         *launch_args,
-        lane_follow_node,
+        steering_control_node,
         joy_node,
         driver_node,
         realsense_node,
