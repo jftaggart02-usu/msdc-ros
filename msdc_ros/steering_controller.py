@@ -7,11 +7,12 @@ import math
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import ImageMsg
+from sensor_msgs.msg import Image as ImageMsg
 from sensor_msgs.msg import Joy
 from rosmaster_r2_msgs.msg import AkmControl
 
 import torch
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from PIL import Image
 from torchvision import transforms
 from msdc_core.steering_net.steering_net import SteeringNet
@@ -45,6 +46,7 @@ class SteeringController(Node):
         # Load the SteeringNet model
         self.model = SteeringNet()
         self.model.load_state_dict(torch.load(self.model_path))
+        self.model.to(device)
         self.model.eval()
 
         # Define an image transform to normalize the image and convert it to a tensor
@@ -123,7 +125,7 @@ class SteeringController(Node):
 
             # Run a forward pass through the model to get the predicted steering angle
             with torch.no_grad():
-                predicted_steering_angle = self.model(image_tensor).item()
+                predicted_steering_angle = self.model(image_tensor.to(device)).item()
 
             # Create an AkmControl message with the predicted steering angle and constant velocity
             control_msg = AkmControl()
