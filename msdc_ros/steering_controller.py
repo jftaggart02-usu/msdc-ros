@@ -45,7 +45,7 @@ class SteeringController(Node):
 
         # Load the SteeringNet model
         self.model = SteeringNet()
-        self.model.load_state_dict(torch.load(self.model_path))
+        self.model.load_state_dict(torch.load(self.model_path, map_location=device))
         self.model.to(device)
         self.model.eval()
 
@@ -56,7 +56,7 @@ class SteeringController(Node):
         self.image_sub = self.create_subscription(
             msg_type=ImageMsg,
             topic=self.image_topic,
-            callback=self.publish_control_command,
+            callback=self.image_callback,
             qos_profile=1
         )
 
@@ -103,9 +103,7 @@ class SteeringController(Node):
         image_pil = Image.fromarray(image_np).convert('RGB')
 
         # Apply the defined transforms to get a tensor of shape (C, H, W) with values in [0, 1]
-        image_tensor = self.transform(image_pil)
-
-        return image_tensor
+        return self.transform(image_pil)
 
     def check_enable_state(self):
         """Checks the latest Joy message to determine whether the controller should be enabled or disabled based on the specified button state."""
