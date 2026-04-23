@@ -150,8 +150,8 @@ class DataCollector(Node):
             # Write depth and RGB images to files
             index_str = f"{self.sample_index:08d}"
             filename = index_str + ".png"
-            cv2.imwrite(str(self.dataset_dir / "rgb" / filename), self.convert_rgb_msg_to_numpy(self.latest_rgb))
-            cv2.imwrite(str(self.dataset_dir / "depth" / filename), self.convert_depth_msg_to_numpy(self.latest_depth))
+            cv2.imwrite(str(self.dataset_dir / "rgb" / filename), convert_rgb_msg_to_numpy(self.latest_rgb))
+            cv2.imwrite(str(self.dataset_dir / "depth" / filename), convert_depth_msg_to_numpy(self.latest_depth))
 
             # Write steering angle (radians) to CSV
             self.writer.writerow([f"{self.latest_rgb_timestamp:0.9f}", index_str, f"{math.radians(self.latest_control.steering_angle):0.9f}"])
