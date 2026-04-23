@@ -91,7 +91,7 @@ class SteeringController(Node):
     def image_to_tensor(self, image_msg: ImageMsg) -> torch.Tensor:
         """Converts a ROS Image message to a normalized PyTorch tensor suitable for input to the SteeringNet model."""
         # Convert the ROS Image message to a numpy array
-        image_np = convert_rgb_msg_to_numpy(image_msg)
+        image_np = convert_rgb_msg_to_numpy(image_msg, bgr=False)
 
         # Convert the numpy array to a PIL Image
         image_pil = Image.fromarray(image_np).convert('RGB')
@@ -102,7 +102,7 @@ class SteeringController(Node):
     def publish_control_command(self) -> None:
         """Timer callback that runs a forward pass through the model to get the predicted steering angle and publishes an AkmControl message with the predicted steering angle and constant velocity."""
 
-        if self.latest_joy.buttons[self.joy_enable_button] == 1 and self.latest_image is not None:
+        if self.latest_joy is not None and self.latest_joy.buttons[self.joy_enable_button] == 1 and self.latest_image is not None:
 
             # Convert the incoming ROS Image message to a tensor
             image_tensor = self.image_to_tensor(self.latest_image)
