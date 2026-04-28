@@ -31,6 +31,7 @@ class SteeringController(Node):
         self.declare_parameter(name='joy_topic', value='/joy')
         self.declare_parameter(name='joy_enable_button', value=0)  # Button index to enable/disable the controller
         self.declare_parameter(name='publish_rate', value=10.0)  # Rate (in Hz) to publish control commands when enabled
+        self.declare_parameter(name='require_joy_enable', value=True)  # Whether to require joystick button to be pressed to enable the controller, or to always run the model and publish commands based on the latest image received regardless of joystick input (useful for testing without a joystick)
 
         # Set parameters
         self.model_path = self.get_parameter('model_path').get_parameter_value().string_value
@@ -40,6 +41,7 @@ class SteeringController(Node):
         self.joy_topic = self.get_parameter('joy_topic').get_parameter_value().string_value
         self.joy_enable_button = self.get_parameter('joy_enable_button').get_parameter_value().integer_value
         self.publish_rate = self.get_parameter('publish_rate').get_parameter_value().double_value
+        self.require_joy_enable = self.get_parameter('require_joy_enable').get_parameter_value().bool_value
 
         # Load the SteeringNet model
         self.model = SteeringNet()
@@ -102,7 +104,7 @@ class SteeringController(Node):
     def publish_control_command(self) -> None:
         """Timer callback that runs a forward pass through the model to get the predicted steering angle and publishes an AkmControl message with the predicted steering angle and constant velocity."""
 
-        if self.latest_joy is not None and self.latest_joy.buttons[self.joy_enable_button] == 1 and self.latest_image is not None:
+        if not self.require_joy_enable or (self.latest_joy is not None and self.latest_joy.buttons[self.joy_enable_button] == 1 and self.latest_image is not None):
 
             # Convert the incoming ROS Image message to a tensor
             image_tensor = self.image_to_tensor(self.latest_image)

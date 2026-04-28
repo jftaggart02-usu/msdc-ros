@@ -50,3 +50,36 @@ def convert_depth_msg_to_numpy(msg: Image) -> np.ndarray:
         data = data.byteswap()
 
     return data
+
+def convert_numpy_to_rgb_msg(image: np.ndarray, encoding: str = "rgb8") -> Image:
+    """Convert a numpy array to a ROS2 Image message with RGB or BGR encoding.
+    
+    Args:
+        image: A numpy array of shape (H, W, 3) containing the image data. Encoding must be in BGR format (as is standard for OpenCV).
+        encoding: The desired encoding for the ROS Image message. Must be either "bgr8" or "rgb8".
+
+    Returns:
+        A ROS2 Image message containing the image data.
+    """
+    if encoding not in ["bgr8", "rgb8"]:
+        raise ValueError(f"Unsupported encoding type: {encoding}")
+
+    # Ensure the image has 3 channels
+    if image.ndim != 3 or image.shape[2] != 3:
+        raise ValueError("Input image must have 3 channels (H x W x 3)")
+
+    # Convert to the correct color space if needed
+    if encoding == "rgb8":
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    # Create Image message
+    msg = Image()
+    msg.height, msg.width, _ = image.shape
+    msg.encoding = encoding
+    msg.is_bigendian = False
+    msg.step = msg.width * 3  # 3 bytes per pixel for RGB/BGR
+
+    # Flatten the image data and convert to bytes
+    msg.data = image.tobytes()
+
+    return msg

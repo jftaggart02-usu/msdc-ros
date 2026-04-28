@@ -29,6 +29,7 @@ setup(
             "data_collector = msdc_ros.data_collector:main",
             "teleop_node = msdc_ros.teleop_node:main",
             "steering_controller = msdc_ros.steering_controller:main",
+            "video_publisher = msdc_ros.video_publisher:main",
         ],
     },
 )

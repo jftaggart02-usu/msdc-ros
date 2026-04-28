@@ -10,11 +10,12 @@ def generate_launch_description():
     launch_args = [
         DeclareLaunchArgument("model_path", default_value="path/to/your/model.pt", description="Path to the steering net model file"),
         DeclareLaunchArgument("publish_rate", default_value="10.0", description="Rate (in Hz) to publish control commands when enabled"),
-        DeclareLaunchArgument("joy_enable_button", default_value="0", description="Button index to enable/disable the controller"),
-        DeclareLaunchArgument("image_topic", default_value="/camera/camera/color/image_raw", description="Topic for input RGB images"),
+        DeclareLaunchArgument("image_topic", default_value="/video_frames", description="Topic for input RGB images"),
         DeclareLaunchArgument("control_topic", default_value="/movement_control", description="Topic to publish control commands to"),
         DeclareLaunchArgument("joy_topic", default_value="/joy", description="Topic for joystick input to enable/disable the controller"),
-        DeclareLaunchArgument("velocity", default_value="0.3", description="Constant velocity to use when publishing control commands"),
+        DeclareLaunchArgument("velocity", default_value="0.0", description="Constant velocity to use when publishing control commands"),
+        DeclareLaunchArgument("video_path", default_value="path/to/your/video.mp4", description="Path to the video file to publish frames from"),
+        DeclareLaunchArgument("default_video_publish_rate", default_value="10.0", description="Default rate (in Hz) to publish video frames when the video_publisher node is launched"),
     ]
 
     steering_control_node = Node(
@@ -23,19 +24,12 @@ def generate_launch_description():
         parameters=[
             {"model_path": LaunchConfiguration("model_path")},
             {"publish_rate": LaunchConfiguration("publish_rate")},
-            {"joy_enable_button": LaunchConfiguration("joy_enable_button")},
             {"image_topic": LaunchConfiguration("image_topic")},
             {"control_topic": LaunchConfiguration("control_topic")},
             {"joy_topic": LaunchConfiguration("joy_topic")},
             {"velocity": LaunchConfiguration("velocity")},
-            {"require_joy_enable": True},
+            {"require_joy_enable": False},
         ],
-    )
-
-    # Joy node for joystick input
-    joy_node = Node(
-        package="joy",
-        executable="joy_node",
     )
 
     # Driver node for the rosmaster
@@ -45,22 +39,20 @@ def generate_launch_description():
         parameters=[{"driver_sleep_time": 0.002, "state_pub_period": 1.0}],
     )
 
-    # RealSense camera node
-    realsense_node = Node(
-        package="realsense2_camera",
-        executable="realsense2_camera_node",
+    # Video publisher node to publish frames from a video file to the /image_raw topic
+    video_publisher_node = Node(
+        package="msdc_ros",
+        executable="video_publisher",
         parameters=[
-            {"rgb_camera.color_profile": "640x480x30"},
-            {"enable_depth": False},
-            {"enable_infra1": False},
-            {"enable_infra2": False},
+            {"video_path": LaunchConfiguration("video_path")},
+            {"topic_name": LaunchConfiguration("image_topic")},
+            {"default_publish_rate": LaunchConfiguration("default_video_publish_rate")},
         ],
     )
 
     return LaunchDescription([
         *launch_args,
         steering_control_node,
-        joy_node,
         driver_node,
-        realsense_node,
+        video_publisher_node
     ])
